@@ -5,8 +5,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <confini.h>
+#include <string.h>
+#include <jansson.h>
 
-#define INIVALIDATE_VERSION "1.0.0"
+#define INIVALIDATE_VERSION "1.1.0"
 
 static void usage(void)
 {
@@ -22,6 +24,7 @@ static void usage(void)
 }
 
 char * inputFilePath=0;
+json_t * sectionNames=0;
 
 static void parse_options(int argc, char **argv)
 {
@@ -60,7 +63,10 @@ uint32_t sectionCount = 0;
 static int callback_handler(IniDispatch * dispatch, __attribute__((unused)) void * v_null)
 {
 	if(dispatch->type==INI_SECTION)
+	{
+		json_array_append(sectionNames, json_string(dispatch->data));
 		sectionCount++;
+	}
 
 	/*if(dispatch->type!=INI_COMMENT && dispatch->type!=INI_INLINE_COMMENT)
 	{
@@ -78,12 +84,19 @@ int main(int argc, char ** argv)
 {
 	parse_options(argc, argv);
 
+	sectionNames = json_array();
+
 	if(load_ini_path(inputFilePath, INI_DEFAULT_FORMAT, 0, callback_handler, 0) || sectionCount==0)
 	{
-    	printf("false\n");
+    	printf("{\"valid\":false}\n");
     	return EXIT_FAILURE;
 	}
 	
-	printf("true\n");
+	json_t * result = json_object();
+	json_object_set(result, "valid", json_boolean(true));
+	json_object_set(result, "sectionNames", sectionNames);
+
+	printf("%s\n", json_dumps(result, 0));
+
 	return EXIT_SUCCESS;
 }
